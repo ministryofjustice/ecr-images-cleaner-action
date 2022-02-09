@@ -21,7 +21,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - run: ./ecr-cleanup.sh
+    - run: ${{ github.action_path }}/ecr-cleanup.sh
       shell: bash
       env:
         ECR_REPO_NAME: ${{ inputs.ecr-repo-name }}
