@@ -60,11 +60,13 @@ The following inputs can be passed to the action. Some are mandatory, some are o
 
 - `additional-tags-regex` - Optional - Additional image tags that should not be deleted (regex). Default: `.*main.*|.*latest.*`
 
-- `days-to-keep-old-images` - Optional - Number of days to keep images, older will be purge (unless in use or in buffer). **Default: 30**.
+- `days-to-keep-old-images` - Optional - Number of days to keep images, older will be purged (unless in use or in buffer). **Default: 30**.
 
 - `max-old-images-to-keep` - Optional - Number of images to keep even if they are older than the cutoff date. **Default: 25**.
 
-## Example of use
+## Examples of use
+
+1. Omitting optional inputs. It will use the default values:
 
 ```yaml
 - name: Run ECR cleanup script
@@ -77,7 +79,24 @@ The following inputs can be passed to the action. Some are mandatory, some are o
     kube-cluster: ${{ secrets.KUBE_PROD_CLUSTER }}
     kube-namespace: ${{ secrets.KUBE_PROD_NAMESPACE }}
     ecr-repo-name: family-justice/disclosure-checker
-    max-old-images-to-keep: 75
+```
+
+2. Customising optional input values:
+
+```yaml
+- name: Run ECR cleanup script
+  uses: ministryofjustice/ecr-images-cleaner-action@v1.0.1
+  with:
+    aws-access-key-id: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
+    aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
+    kube-cert: ${{ secrets.KUBE_PROD_CERT }}
+    kube-token: ${{ secrets.KUBE_PROD_TOKEN }}
+    kube-cluster: ${{ secrets.KUBE_PROD_CLUSTER }}
+    kube-namespace: ${{ secrets.KUBE_PROD_NAMESPACE }}
+    ecr-repo-name: family-justice/disclosure-checker
+    additional-tags-regex: .*published.*
+    days-to-keep-old-images: 15
+    max-old-images-to-keep: 30
 ```
 
 Then you can use this job on a workflow that runs on a schedule, or with `workflow_dispatch` to run it manually.
