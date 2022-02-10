@@ -36,6 +36,7 @@ function replicaset_images() {
 
 function delete_images() {
   if [[ $# -ne 1 ]]; then echo "$0: wrong number of arguments"; return 1; fi
+  echo "Calling batch-delete-image..."
   local response=$(aws ecr batch-delete-image --region $region --repository-name $ecr_repo --image-ids "$1")
   local successes=$(echo $response | jq '.imageIds | length')
   local failures=$(echo $response | jq '.failures | length')
@@ -58,28 +59,29 @@ retention_time_ms=$(($days_to_keep_old_images*60*60*24))
 retention_cut_off_epoch=$(($(date '+%s')-$retention_time_ms))
 retention_cut_off_date=$(echo $retention_cut_off_epoch | jq 'todate')
 echo "Retention cutoff date: $retention_cut_off_date ($days_to_keep_old_images days or older)"
-echo
 
 images_to_delete=$(aws ecr describe-images --region $region --repository-name $ecr_repo | jq "{imageDetails: [.imageDetails[] | select(.imageTags // [] | any(match(\"^($replicaset_tags|$regex_tags)$\")) | not ) | select(.imagePushedAt <= $retention_cut_off_date)] | sort_by(.imagePushedAt) | .[0:-$max_old_images_to_keep] }")
 images_to_delete_count=$(echo $images_to_delete | jq '.imageDetails | length')
 echo "Total images to delete: $images_to_delete_count (excluding replicaset images and a buffer of $max_old_images_to_keep images)"
 
 if [[ ${images_to_delete_count} -gt ${batch_delete_limit} ]]; then
-  echo "There are more than $batch_delete_limit images to delete but BatchDeleteImage operation can only delete $batch_delete_limit at a time. Next run of the script will delete remaining images."
+  echo "There are more than $batch_delete_limit images to delete but BatchDeleteImage operation can only delete $batch_delete_limit at a time. Multiple calls will be triggered."
 fi
 
-echo
 echo "Deleting images now..."
 echo "Images before cleaning: $(image_count)"
 
+# Note: _nwise will group the JQ response in groups of at most 100 image digests, as that is the AWS limit,
+# and a loop will iterate through these groups (1 or more), performing the batch-delete-image.
 if [[ ${images_to_delete_count} -gt 0 ]]; then
-  image_digests=$(echo $images_to_delete | jq "[{ imageDigest: .imageDetails[].imageDigest }] | .[0:$batch_delete_limit]")
-  delete_images "$image_digests"
+  echo $images_to_delete | jq -c "[{ imageDigest: .imageDetails[].imageDigest }] | _nwise($batch_delete_limit)" |
+    while IFS=$"\n" read -r image_digests; do
+      delete_images "$image_digests"
+    done
   echo "Images deletion complete"
 else
   echo "There are no images to delete"
 fi
 
 echo "Images after cleaning: $(image_count)"
-echo
 echo "Job done."
