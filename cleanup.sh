@@ -53,12 +53,15 @@ kubectl config use-context ${KUBE_CLUSTER}
 
 replicaset_tags=$(replicaset_images)
 echo -e "Image tags used in ReplicaSet history in authenticated namespace:\n$replicaset_tags"
-echo "Additional tags to keep (regex): '$regex_tags'"
 
 retention_time_ms=$(($days_to_keep_old_images*60*60*24))
 retention_cut_off_epoch=$(($(date '+%s')-$retention_time_ms))
 retention_cut_off_date=$(echo $retention_cut_off_epoch | jq 'todate')
 echo "Retention cutoff date: $retention_cut_off_date ($days_to_keep_old_images days or older)"
+
+images_to_protect=$(aws ecr describe-images --region $region --repository-name $ecr_repo | jq "{imageDetails: [.imageDetails[] | select(.imageTags // [] | any(match(\"^($replicaset_tags|$regex_tags)$\")) )] | sort_by(.imagePushedAt) | .[] | {imageTags, imagePushedAt} }")
+echo "The images to protect based on ReplicaSet history or regex '$regex_tags' will be:"
+echo "$images_to_protect"
 
 images_to_delete=$(aws ecr describe-images --region $region --repository-name $ecr_repo | jq "{imageDetails: [.imageDetails[] | select(.imageTags // [] | any(match(\"^($replicaset_tags|$regex_tags)$\")) | not ) | select(.imagePushedAt <= $retention_cut_off_date)] | sort_by(.imagePushedAt) | .[0:-$max_old_images_to_keep] }")
 images_to_delete_count=$(echo $images_to_delete | jq '.imageDetails | length')

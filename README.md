@@ -68,7 +68,7 @@ The following inputs can be passed to the action. Some are mandatory, some are o
 
 ```yaml
 - name: Run ECR cleanup script
-  uses: ministryofjustice/ecr-images-cleaner-action@v1.0.0
+  uses: ministryofjustice/ecr-images-cleaner-action@v1.0.1
   with:
     aws-access-key-id: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
     aws-secret-access-key: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
