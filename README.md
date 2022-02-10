@@ -2,6 +2,25 @@
 
 A github action to help with the cleanup of old ECR images, supporting some parametrisation.
 
+The action will call a bash script that performs the following:
+
+First, it will retrieve all images declared in the replica set history for the `kube-namespace` input provided.   
+This will usually be production as these are the images that you would want to protect from being deleted.
+
+So for example if you have a deployment with `revisionHistoryLimit: 5` in their spec, this action will protect up to 
+6 image tags (the one in the currently active deployment plus the previous 5), no matter how old they are.
+
+Then it will get the details of all images stored in the ECR, filtering out the above replica set images, any image 
+that matches the regex `additional-tags-regex` and any image pushed less than `days-to-keep-old-images` ago.  
+The default for this variable is 30 days but can be configured.
+
+Finally, we sort the resulting images by their `imagePushedAt` date, from older to newer, and proceed to apply a 
+safety buffer `max-old-images-to-keep` that we will maintain, even knowing that there are old images.  
+
+So for example if the resulting set of images to delete is 75 after applying all the above filters, without the buffer 
+we would delete all of them. With a buffer of 25 (this is the default value), we will only delete the oldest 50, 
+and leave the most recent 25 images. This buffer can be configured too.
+
 ## Setup
 
 To set this up, you require an IAM user with access to the ECR, as well as credentials to authenticate to the 
@@ -20,15 +39,6 @@ Your secrets may have other names, it doesn't matter, as you will pass them when
 
 Also, if instead of your production namespace, you prefer to use staging, or any other, the secrets must correspond to that 
 namespace.
-
-## ReplicaSet and kubernetes cluster
-
-The `KUBE_*` secrets are needed because this action will retrieve your deployment replica set, in order to protect (i.e. 
-do not delete) any image part of the replica set history, including those images currently deployed and active.
-
-So for example if you have a deployment with `revisionHistoryLimit: 5` in their spec, this action will protect up to 
-6 image tags (the one in the currently active deployment plus the previous 5).  
-These images will not be deleted from the ECR even if they are older than the `days-to-keep-old-images`.
 
 ## Inputs
 

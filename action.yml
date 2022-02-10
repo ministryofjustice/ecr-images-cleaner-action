@@ -39,7 +39,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - run: ${{ github.action_path }}/ecr-cleanup.sh
+    - run: ${{ github.action_path }}/cleanup.sh
       shell: bash
       env:
         AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
